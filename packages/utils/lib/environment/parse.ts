@@ -224,6 +224,7 @@ export const ENVS = z.object({
     USAGE_CAPPING_ENABLED: z.stringbool().optional().default(false),
     USAGE_REVALIDATE_AFTER_MS: z.coerce.number().optional().default(3_600_000), // 1 hour
     USAGE_BILLING_API_MAX_RPS: z.coerce.number().optional().default(5), // max requests per second to Orb API usage endpoint is 10, keeping some margin
+    USAGE_BILLING_API_MAX_QUEUE_SIZE: z.coerce.number().optional().default(100), // max queued requests by rate limiter
     USAGE_BILLING_API_CACHE_TTL_SECONDS: z.coerce
         .number()
         .optional()
@@ -351,7 +352,7 @@ export const ENVS = z.object({
     // ----- Others
     SERVER_RUN_MODE: z.enum(['DOCKERIZED', '']).optional(),
     NANGO_CLOUD: z.stringbool().optional().default(false),
-    NANGO_ENTERPRISE: z.stringbool().optional().default(false),
+    NANGO_ENTERPRISE: z.stringbool().optional().default(true),
     NANGO_TELEMETRY_SDK: z.stringbool().optional().default(false),
     NANGO_ADMIN_KEY: z.string().optional(),
     NANGO_INTEGRATIONS_FULL_PATH: z.string().optional(),

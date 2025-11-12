@@ -4,7 +4,7 @@ import { CopyObjectCommand, DeleteObjectsCommand, GetObjectCommand, PutObjectCom
 import archiver from 'archiver';
 
 import { nangoConfigFile } from '@nangohq/nango-yaml';
-import { isCloud, isEnterprise, isLocal, isTest, report } from '@nangohq/utils';
+import { isTest, report } from '@nangohq/utils';
 
 import localFileService from './local.service.js';
 import { NangoError } from '../../utils/error.js';
@@ -14,6 +14,10 @@ import type { ServiceResponse } from '../../models/Generic.js';
 import type { GetObjectCommandOutput } from '@aws-sdk/client-s3';
 import type { DBSyncConfig } from '@nangohq/types';
 import type { Response } from 'express';
+
+const isEnterprise= true; // Temporary override for Enterprise mode
+const isCloud= false; // Temporary override for Cloud mode
+const isLocal= true;
 
 class RemoteFileService {
     private client: S3Client;
@@ -25,11 +29,27 @@ class RemoteFileService {
 
     constructor() {
         const region = process.env['AWS_REGION'] ?? 'us-west-2';
+        console.log('[RemoteFileService] Constructor - Environment detection:', {
+            isEnterprise,
+            isLocal,
+            isTest,
+            isCloud: process.env['NANGO_CLOUD'],
+            AWS_REGION: process.env['AWS_REGION'],
+            AWS_BUCKET_NAME: process.env['AWS_BUCKET_NAME'] ? '***set***' : 'undefined',
+            NODE_ENV: process.env['NODE_ENV']
+        });
+        
         if (isEnterprise) {
             this.useS3 = Boolean(process.env['AWS_REGION'] && process.env['AWS_BUCKET_NAME']);
         } else {
             this.useS3 = !isLocal && !isTest;
         }
+
+        console.log('[RemoteFileService] Constructor - Final S3 configuration:', {
+            useS3: this.useS3,
+            region,
+            bucket: this.bucket
+        });
 
         this.client = new S3Client({
             region
@@ -45,15 +65,29 @@ class RemoteFileService {
         destinationPath: string;
         destinationLocalPath: string;
     }): Promise<string | null> {
+        console.log('[RemoteFileService] upload() called with:', {
+            destinationPath,
+            destinationLocalPath,
+            contentLength: content.length,
+            useS3: this.useS3,
+            isEnterprise,
+            isLocal,
+            isTest,
+            bucket: this.bucket
+        });
+
         if (isEnterprise && !this.useS3) {
+            console.log('[RemoteFileService] Enterprise mode - using local file storage');
             localFileService.putIntegrationFile({ filePath: destinationLocalPath, fileContent: content });
 
             return '_LOCAL_FILE_';
         }
         if (!this.useS3) {
+            console.log('[RemoteFileService] Non-S3 mode - using local file storage');
             return '_LOCAL_FILE_';
         }
 
+        console.log('[RemoteFileService] Attempting S3 upload to bucket:', this.bucket);
         try {
             await this.client.send(
                 new PutObjectCommand({
@@ -63,8 +97,16 @@ class RemoteFileService {
                 })
             );
 
+            console.log('[RemoteFileService] S3 upload successful for:', destinationPath);
             return destinationPath;
         } catch (err) {
+            console.error('[RemoteFileService] S3 upload failed:', {
+                error: err,
+                bucket: this.bucket,
+                destinationPath,
+                errorMessage: err instanceof Error ? err.message : 'Unknown error',
+                errorName: err instanceof Error ? err.name : 'Unknown'
+            });
             report(err);
 
             return null;
@@ -94,8 +136,22 @@ class RemoteFileService {
         destinationLocalPath: string;
     }): Promise<string | null> {
         const s3FilePath = `${isZeroYaml ? this.publicZeroYamlRoute : this.publicRoute}/${sourcePath}`;
+        
         try {
-            if (isCloud) {
+            if (isEnterprise && !this.useS3) {
+                console.log('[RemoteFileService] Enterprise mode - copying template from local storage');
+                // Copy from bundled integration templates
+                const success = localFileService.copyTemplateFile({ 
+                    sourcePath: sourcePath, 
+                    destinationPath: destinationLocalPath 
+                });
+                if (success) {
+                    return '_LOCAL_FILE_';
+                } else {
+                    console.error('[RemoteFileService] Failed to copy template file:', sourcePath);
+                    return null;
+                }
+            } else if (isCloud) {
                 await this.client.send(
                     new CopyObjectCommand({
                         Bucket: this.bucket,
@@ -113,6 +169,7 @@ class RemoteFileService {
                 return '_LOCAL_FILE_';
             }
         } catch (err) {
+            console.error('[RemoteFileService] Error in copy operation:', err);
             report(err, { filePath: s3FilePath });
 
             return null;
@@ -120,6 +177,10 @@ class RemoteFileService {
     }
 
     async getPublicTemplateJsonSchemaFile(integrationName: string): Promise<string | null> {
+        if (isEnterprise && !this.useS3) {
+            console.log('[RemoteFileService] Enterprise mode - getting template schema from local storage');
+            return localFileService.getTemplateFile(`${integrationName}/.nango/schema.json`);
+        }
         return await this.getFile(`${this.publicRoute}/${integrationName}/.nango/schema.json`);
     }
 

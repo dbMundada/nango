@@ -25,6 +25,9 @@ const scriptTypeToPath: Record<NangoProps['scriptType'], string> = {
 
 const basePath = process.env['NANGO_INTEGRATIONS_FULL_PATH'] || path.resolve(__dirname, `../nango-integrations`);
 
+// Console log to verify the path
+console.log('[LocalFileService] basePath:', basePath);
+
 class LocalFileService {
     public getIntegrationFile({
         scriptType,
@@ -165,6 +168,53 @@ class LocalFileService {
             return path.resolve(basePath, `build/${providerConfigKey}_${scriptTypeToPath[scriptType]}_${syncConfig.sync_name}.cjs`);
         } else {
             return path.resolve(basePath, `dist/${syncConfig.sync_name}-${providerConfigKey}.js`);
+        }
+    }
+
+    // New method to get files from bundled integration templates
+    public getTemplateFile(filePath: string): string | null {
+        try {
+            const fullPath = path.resolve(basePath, filePath);
+            console.log('[LocalFileService] Attempting to read template file:', fullPath);
+            
+            if (fs.existsSync(fullPath)) {
+                const content = fs.readFileSync(fullPath, 'utf8');
+                console.log('[LocalFileService] Successfully read template file:', fullPath);
+                return content;
+            } else {
+                console.log('[LocalFileService] Template file not found:', fullPath);
+                return null;
+            }
+        } catch (err) {
+            console.error('[LocalFileService] Error reading template file:', err);
+            return null;
+        }
+    }
+
+    // Copy template file to destination for template deployments
+    public copyTemplateFile({ sourcePath, destinationPath }: { sourcePath: string; destinationPath: string }): boolean {
+        try {
+            const sourceFullPath = path.resolve(basePath, sourcePath);
+            const destFullPath = path.resolve(basePath, destinationPath);
+            
+            console.log('[LocalFileService] Copying template file from:', sourceFullPath, 'to:', destFullPath);
+            
+            if (!fs.existsSync(sourceFullPath)) {
+                console.error('[LocalFileService] Source template file does not exist:', sourceFullPath);
+                return false;
+            }
+
+            // Ensure destination directory exists
+            const destDir = path.dirname(destFullPath);
+            fs.mkdirSync(destDir, { recursive: true });
+
+            // Copy the file
+            fs.copyFileSync(sourceFullPath, destFullPath);
+            console.log('[LocalFileService] Successfully copied template file');
+            return true;
+        } catch (err) {
+            console.error('[LocalFileService] Error copying template file:', err);
+            return false;
         }
     }
 }

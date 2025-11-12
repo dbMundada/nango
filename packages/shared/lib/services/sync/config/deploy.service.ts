@@ -293,21 +293,49 @@ async function compileDeployInfo({
     const idsToMarkAsInactive: number[] = [];
 
     const jsFile = typeof fileBody === 'string' ? fileBody : fileBody.js;
+    console.log('[compileDeployInfo] About to upload JS file:', {
+        syncName,
+        version,
+        providerConfigKey,
+        env,
+        accountId: account.id,
+        environmentId: environment_id,
+        configId: config.id,
+        fileLength: jsFile.length
+    });
+    
     const file_location = (await remoteFileService.upload({
         content: jsFile,
         destinationPath: `${env}/account/${account.id}/environment/${environment_id}/config/${config.id}/${syncName}-v${version}.js`,
         destinationLocalPath: `${syncName}-${providerConfigKey}.js`
     })) as string;
 
+    console.log('[compileDeployInfo] JS file upload result:', {
+        file_location,
+        success: !!file_location
+    });
+
     if (typeof fileBody === 'object' && fileBody.ts) {
-        await remoteFileService.upload({
+        console.log('[compileDeployInfo] About to upload TS file:', {
+            syncName,
+            providerConfigKey,
+            flowType: flow.type
+        });
+        
+        const tsUploadResult = await remoteFileService.upload({
             content: fileBody.ts,
             destinationPath: `${env}/account/${account.id}/environment/${environment_id}/config/${config.id}/${syncName}.ts`,
             destinationLocalPath: `${providerConfigKey}/${flow.type}s/${syncName}.ts`
         });
+        
+        console.log('[compileDeployInfo] TS file upload result:', {
+            result: tsUploadResult,
+            success: !!tsUploadResult
+        });
     }
 
     if (!file_location) {
+        console.error('[compileDeployInfo] File upload failed - throwing error');
         void logCtx.error('There was an error uploading the sync file', { fileName: `${syncName}-v${version}.js` });
 
         // this is a platform error so throw this

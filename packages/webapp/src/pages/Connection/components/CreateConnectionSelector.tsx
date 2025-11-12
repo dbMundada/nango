@@ -84,8 +84,12 @@ export const CreateConnectionSelector: React.FC = () => {
 
         const nango = new Nango({
             host: globalEnv.apiUrl,
-            websocketsPath: environmentAndAccount.environment.websockets_path || ''
+            websocketsPath: "", // environmentAndAccount.environment.websockets_path || ''
         });
+        console.log('CreateConnectionSelector: onClickConnectUI');
+        console.log('Opening Connect UI with env:', env);
+        console.log('Connect URL:', globalEnv.connectUrl);
+        console.log('API URL:', globalEnv.apiUrl);
 
         connectUI.current = nango.openConnectUI({
             baseURL: globalEnv.connectUrl,

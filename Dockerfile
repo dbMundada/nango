@@ -59,6 +59,17 @@ COPY . /app/tmp
 RUN true \
   && npm run ts-build:docker
 
+# Download and setup integration templates for enterprise mode
+RUN true \
+  && apt update && apt-get install -y git wget unzip \
+  && rm -rf /var/lib/apt/lists/* \
+  && cd /tmp \
+  && wget https://github.com/NangoHQ/integration-templates/archive/refs/heads/main.zip \
+  && unzip main.zip \
+  && mkdir -p /app/tmp/packages/shared/nango-integrations \
+  && cp -r integration-templates-main/* /app/tmp/packages/shared/nango-integrations/ \
+  && rm -rf /tmp/integration-templates-main /tmp/main.zip
+
 # /!\ Do not set NODE_ENV=production before building, it will break some modules
 # ENV NODE_ENV=production
 

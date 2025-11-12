@@ -56,6 +56,10 @@ export const FirstStep: React.FC<FirstStepProps> = ({ connection, integration, o
         //   instead of blocking the main loop and no visual clue for the end user
         setTimeout(async () => {
             try {
+                console.log('FirstStep.tsx: onClickConnectUI');
+                console.log('Opening Connect UI with env:', env);
+                console.log('Connect URL:', globalEnv.connectUrl);
+                console.log('API URL:', globalEnv.apiUrl);
                 const res = await apiConnectSessions(env, {
                     allowed_integrations: integration ? [integration.unique_key] : undefined,
                     end_user: {

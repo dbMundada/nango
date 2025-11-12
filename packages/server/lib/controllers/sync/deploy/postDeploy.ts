@@ -49,6 +49,16 @@ export const postDeploy = asyncWrapper<PostDeploy>(async (req, res) => {
         return;
     }
 
+    console.log('[postDeploy] Starting deployment:', {
+        accountId: account.id,
+        environmentId: environment.id,
+        environmentName: environment.name,
+        flowCount: body.flowConfigs?.length || 0,
+        debug: body.debug,
+        sdkVersion: body.sdkVersion,
+        hasNangoYaml: !!body.nangoYamlBody
+    });
+
     const {
         success,
         error,
@@ -64,6 +74,14 @@ export const postDeploy = asyncWrapper<PostDeploy>(async (req, res) => {
         logContextGetter,
         sdkVersion: body.sdkVersion,
         orchestrator
+    });
+
+    console.log('[postDeploy] Deploy completed:', {
+        success,
+        hasError: !!error,
+        errorType: error?.type || null,
+        errorMessage: error?.message || null,
+        hasResult: !!syncConfigDeployResult
     });
 
     if (plan && !plan.trial_end_at && plan.auto_idle) {
